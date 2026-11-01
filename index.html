@@ -6,9 +6,7 @@
   <title>Snake Game</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -37,7 +35,6 @@
       display: flex;
       justify-content: space-between;
       margin: 12px 0;
-      font-size: 16px;
     }
 
     canvas {
@@ -87,30 +84,10 @@
       -webkit-user-select: none;
     }
 
-    .controls button:active {
-      background: #4bd477;
-      color: #092012;
-    }
-
-    .up {
-      grid-column: 2;
-      grid-row: 1;
-    }
-
-    .left {
-      grid-column: 1;
-      grid-row: 2;
-    }
-
-    .down {
-      grid-column: 2;
-      grid-row: 2;
-    }
-
-    .right {
-      grid-column: 3;
-      grid-row: 2;
-    }
+    .up { grid-column: 2; grid-row: 1; }
+    .left { grid-column: 1; grid-row: 2; }
+    .down { grid-column: 2; grid-row: 2; }
+    .right { grid-column: 3; grid-row: 2; }
 
     .hint {
       font-size: 13px;
@@ -122,7 +99,7 @@
 
 <body>
   <main class="game">
-    <h1>🐍 Snake Game</h1>
+    <h1>🐍 PelSnakeGame</h1>
 
     <div class="scores">
       <span>Skor: <b id="score">0</b></span>
@@ -132,7 +109,6 @@
     <canvas id="board" width="360" height="360"></canvas>
 
     <p id="message">Tekan tombol arah untuk mulai!</p>
-
     <button id="restart">Mulai ulang</button>
 
     <div class="controls">
@@ -143,8 +119,8 @@
     </div>
 
     <p class="hint">
-      Laptop: gunakan tombol panah atau WASD.<br>
-      HP: sentuh tombol arah di atas.
+      Laptop: tombol panah atau WASD.<br>
+      HP: sentuh tombol arah.
     </p>
   </main>
 
@@ -169,6 +145,7 @@
     let gameOver;
     let gameStarted;
     let gameTimer;
+    let gameSpeed;
 
     bestText.textContent = best;
 
@@ -178,31 +155,46 @@
       snake = [
         { x: 10, y: 10 },
         { x: 9, y: 10 },
-        { x: 8, y: 10 }
+        { x: 8, y: 10 },
+        { x: 7, y: 10 }
       ];
 
       direction = "right";
       nextDirection = "right";
       score = 0;
+      gameSpeed = 230;
       gameOver = false;
       gameStarted = false;
 
       scoreText.textContent = score;
       message.textContent = "Tekan tombol arah untuk mulai!";
 
+      food = [];
       placeFood();
       draw();
 
-      gameTimer = setInterval(updateGame, 160);
+      gameTimer = setInterval(updateGame, gameSpeed);
     }
 
     function placeFood() {
-      do {
-        food = {
+      while (food.length < 3) {
+        const apple = {
           x: Math.floor(Math.random() * tileCount),
           y: Math.floor(Math.random() * tileCount)
         };
-      } while (snake.some(part => part.x === food.x && part.y === food.y));
+
+        const onSnake = snake.some(part =>
+          part.x === apple.x && part.y === apple.y
+        );
+
+        const alreadyThere = food.some(item =>
+          item.x === apple.x && item.y === apple.y
+        );
+
+        if (!onSnake && !alreadyThere) {
+          food.push(apple);
+        }
+      }
     }
 
     function changeDirection(newDirection) {
@@ -234,22 +226,24 @@
       if (direction === "left") head.x--;
       if (direction === "right") head.x++;
 
-      // Menabrak dinding
       if (
-        head.x < 0 ||
-        head.y < 0 ||
-        head.x >= tileCount ||
-        head.y >= tileCount
+        head.x < 0 || head.y < 0 ||
+        head.x >= tileCount || head.y >= tileCount
       ) {
         endGame();
         return;
       }
 
-      const eating = head.x === food.x && head.y === food.y;
+      const ateIndex = food.findIndex(item =>
+        item.x === head.x && item.y === head.y
+      );
+
+      const eating = ateIndex !== -1;
       const bodyToCheck = eating ? snake : snake.slice(0, -1);
 
-      // Menabrak badan sendiri
-      if (bodyToCheck.some(part => part.x === head.x && part.y === head.y)) {
+      if (bodyToCheck.some(part =>
+        part.x === head.x && part.y === head.y
+      )) {
         endGame();
         return;
       }
@@ -257,6 +251,7 @@
       snake.unshift(head);
 
       if (eating) {
+        food.splice(ateIndex, 1);
         score++;
         scoreText.textContent = score;
 
@@ -266,6 +261,11 @@
           localStorage.setItem("snakeBest", best);
         }
 
+        // Ular bertambah cepat sedikit setiap makan apel
+        clearInterval(gameTimer);
+        gameSpeed = Math.max(140, gameSpeed - 5);
+        gameTimer = setInterval(updateGame, gameSpeed);
+
         placeFood();
       } else {
         snake.pop();
@@ -274,32 +274,158 @@
       draw();
     }
 
+    function drawApple(apple) {
+      const x = apple.x * tileSize + tileSize / 2;
+      const y = apple.y * tileSize + tileSize / 2;
+
+      // Buah
+      ctx.fillStyle = "#f52f4f";
+      ctx.beginPath();
+      ctx.arc(x, y + 1, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Kilau
+      ctx.fillStyle = "#ffb4bd";
+      ctx.beginPath();
+      ctx.arc(x - 2.5, y - 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tangkai
+      ctx.strokeStyle = "#8b5a2b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 5);
+      ctx.lineTo(x + 1, y - 9);
+      ctx.stroke();
+
+      // Daun
+      ctx.fillStyle = "#78ed8b";
+      ctx.beginPath();
+      ctx.ellipse(x + 4, y - 7, 4, 2, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawSnake() {
+  const points = snake.map(part => ({
+    x: part.x * tileSize + tileSize / 2,
+    y: part.y * tileSize + tileSize / 2
+  }));
+
+  // Badan ular menyambung
+  if (points.length > 1) {
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    ctx.strokeStyle = "#176b3a";
+    ctx.lineWidth = tileSize * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    points.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // Motif hijau muda di badan
+    ctx.strokeStyle = "#75d96b";
+    ctx.lineWidth = tileSize * 0.32;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    points.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  }
+
+  // Ekor meruncing, digambar paling akhir supaya terlihat
+  if (points.length > 1) {
+    const tail = points[points.length - 1];
+    const beforeTail = points[points.length - 2];
+    const angle = Math.atan2(tail.y - beforeTail.y, tail.x - beforeTail.x);
+
+    ctx.fillStyle = "#176b3a";
+    ctx.beginPath();
+    ctx.moveTo(
+      tail.x + Math.cos(angle) * 12,
+      tail.y + Math.sin(angle) * 12
+    );
+    ctx.lineTo(
+      tail.x + Math.cos(angle + 2.5) * 8,
+      tail.y + Math.sin(angle + 2.5) * 8
+    );
+    ctx.lineTo(
+      tail.x + Math.cos(angle - 2.5) * 8,
+      tail.y + Math.sin(angle - 2.5) * 8
+    );
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Kepala
+  const head = points[0];
+  ctx.fillStyle = "#78ed8b";
+  ctx.beginPath();
+  ctx.arc(head.x, head.y, tileSize * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mata dan arah lidah
+  let eye1, eye2;
+  let tongueStart, tongueEnd, fork1, fork2;
+
+  if (direction === "right") {
+    eye1 = { x: head.x + 4, y: head.y - 4 };
+    eye2 = { x: head.x + 4, y: head.y + 4 };
+    tongueStart = { x: head.x + 8, y: head.y };
+    tongueEnd = { x: head.x + 15, y: head.y };
+    fork1 = { x: head.x + 19, y: head.y - 3 };
+    fork2 = { x: head.x + 19, y: head.y + 3 };
+  } else if (direction === "left") {
+    eye1 = { x: head.x - 4, y: head.y - 4 };
+    eye2 = { x: head.x - 4, y: head.y + 4 };
+    tongueStart = { x: head.x - 8, y: head.y };
+    tongueEnd = { x: head.x - 15, y: head.y };
+    fork1 = { x: head.x - 19, y: head.y - 3 };
+    fork2 = { x: head.x - 19, y: head.y + 3 };
+  } else if (direction === "up") {
+    eye1 = { x: head.x - 4, y: head.y - 4 };
+    eye2 = { x: head.x + 4, y: head.y - 4 };
+    tongueStart = { x: head.x, y: head.y - 8 };
+    tongueEnd = { x: head.x, y: head.y - 15 };
+    fork1 = { x: head.x - 3, y: head.y - 19 };
+    fork2 = { x: head.x + 3, y: head.y - 19 };
+  } else {
+    eye1 = { x: head.x - 4, y: head.y + 4 };
+    eye2 = { x: head.x + 4, y: head.y + 4 };
+    tongueStart = { x: head.x, y: head.y + 8 };
+    tongueEnd = { x: head.x, y: head.y + 15 };
+    fork1 = { x: head.x - 3, y: head.y + 19 };
+    fork2 = { x: head.x + 3, y: head.y + 19 };
+  }
+
+  // Mata
+  ctx.fillStyle = "#102018";
+  [eye1, eye2].forEach(eye => {
+    ctx.beginPath();
+    ctx.arc(eye.x, eye.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Lidah merah bercabang
+  ctx.strokeStyle = "#ff3658";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(tongueStart.x, tongueStart.y);
+  ctx.lineTo(tongueEnd.x, tongueEnd.y);
+  ctx.moveTo(tongueEnd.x, tongueEnd.y);
+  ctx.lineTo(fork1.x, fork1.y);
+  ctx.moveTo(tongueEnd.x, tongueEnd.y);
+  ctx.lineTo(fork2.x, fork2.y);
+  ctx.stroke();
+}
+    
+
     function draw() {
       ctx.fillStyle = "#07130c";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Makanan
-      ctx.fillStyle = "#ff5c66";
-      ctx.beginPath();
-      ctx.arc(
-        food.x * tileSize + tileSize / 2,
-        food.y * tileSize + tileSize / 2,
-        tileSize / 2 - 2,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-
-      // Ular
-      snake.forEach((part, index) => {
-        ctx.fillStyle = index === 0 ? "#a0ffb5" : "#4bd477";
-        ctx.fillRect(
-          part.x * tileSize + 1,
-          part.y * tileSize + 1,
-          tileSize - 2,
-          tileSize - 2
-        );
-      });
+      food.forEach(drawApple);
+      drawSnake();
     }
 
     function endGame() {
@@ -309,21 +435,14 @@
       message.textContent = "Game Over! Tekan Mulai ulang untuk bermain lagi.";
     }
 
-    // Kontrol keyboard laptop
     document.addEventListener("keydown", function(event) {
       const keys = {
         ArrowUp: "up",
         ArrowDown: "down",
         ArrowLeft: "left",
         ArrowRight: "right",
-        w: "up",
-        s: "down",
-        a: "left",
-        d: "right",
-        W: "up",
-        S: "down",
-        A: "left",
-        D: "right"
+        w: "up", s: "down", a: "left", d: "right",
+        W: "up", S: "down", A: "left", D: "right"
       };
 
       if (keys[event.key]) {
@@ -332,7 +451,6 @@
       }
     });
 
-    // Kontrol tombol sentuh HP
     document.querySelectorAll("[data-direction]").forEach(button => {
       button.addEventListener("pointerdown", function(event) {
         event.preventDefault();
